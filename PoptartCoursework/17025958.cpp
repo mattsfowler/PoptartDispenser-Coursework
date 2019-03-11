@@ -143,7 +143,8 @@ protected:
 public:
 	virtual void consume(void)
 	{
-
+		cout << "Consuming product..." << endl;
+		delete this;
 	}
 	virtual int cost(void) { return this->itemCost; }
 	virtual string description(void) { return product_description; }
@@ -160,7 +161,7 @@ private:	//all private attributes are new
 	Product* ProductBase = nullptr;
 
 public:
-	~Filling(void); //new <-- CHECK IF THIS IS FINE
+	void consume(void); //new <-- CHECK IF THIS IS FINE
 	virtual void fillProduct(Product* NewBase);
 	virtual int cost(void);
 	virtual string description(void);
@@ -745,7 +746,7 @@ bool DispensesPoptart::dispense(void)
 	{
 		//delete the poptart we just created
 		cout << "Error: not enough credit for selected item" << endl;
-		delete Dispenser->ItemToDispense;
+		Dispenser->ItemToDispense->consume();
 		Dispenser->ItemToDispense = nullptr;
 		Dispenser->itemReadyToDispense = false;
 
@@ -781,9 +782,10 @@ Product* Product::ReturnHighestCostItem(void)
 	return nullptr;
 }
 
-Filling::~Filling(void)
+void Filling::consume(void)
 {
 	delete this->ProductBase;
+	delete this;
 }
 
 void Filling::fillProduct(Product* NewBase)
