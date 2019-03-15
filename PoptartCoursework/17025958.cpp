@@ -80,6 +80,11 @@ public:
 
 };
 
+
+/* Each PoptartState acts as a "mini brain" that deals with the actions
+   defined in the Transition class. If the current state cannot deal
+   with the given action, it displays a simple error message and returns
+   false. */
 class PoptartState : public State, public Transition
 {
 public:
@@ -134,6 +139,7 @@ public:
 	bool dispense(void); //new
 };
 
+//NOTE: ReturnHighestCostItem not implemented!
 class Product
 {
 protected:
@@ -148,7 +154,7 @@ public:
 	}
 	virtual int cost(void) { return this->itemCost; }
 	virtual string description(void) { return product_description; }
-	virtual Product* ReturnHighestCostItem(void);
+	virtual Product* ReturnHighestCostItem(void) { return nullptr; }	// NOT IMPLEMENTED
 };
 
 class Base : public Product
@@ -161,11 +167,10 @@ private:	//all private attributes are new
 	Product* ProductBase = nullptr;
 
 public:
-	void consume(void); //new <-- CHECK IF THIS IS FINE
 	virtual void fillProduct(Product* NewBase);
 	virtual int cost(void);
 	virtual string description(void);
-	Product* ReturnHighestCostItem(void);
+	Product* ReturnHighestCostItem(void) { return nullptr; }	// NOT IMPLEMENTED
 };
 
 
@@ -347,8 +352,8 @@ public:
    Additionally, products are built according to the decorator pattern, where there
    will be many layers for each base / filling the product has (slide 117). */
 
-   /*abstract builder - cannot be used to create products
-   NOTE: must manually call clear() to de-allocate memory if required*/
+/* abstract builder - cannot be used to create products
+   NOTE: must manually call clear() to de-allocate memory if required */
 class ProductBuilder
 {
 public:
@@ -359,6 +364,8 @@ public:
 	virtual Product* getProduct(void) { return nullptr; }
 };
 
+/* concrete builder - can be used to create a poptart. All logic for handling
+   the item codes is contained within this class. */
 class PoptartBuilder
 {
 private:
@@ -367,16 +374,16 @@ private:
 public:
 	void clear(void);
 	void removeReference(void);
-	void buildBase(int itemcode);
-	void buildFillings(int itemcode);
+	void buildBase(int itemcode);		// clears the current product, and creates a single base based off of the item code
+	void buildFillings(int itemcode);	
 	Product* getProduct(void);
 };
 
 
 class Poptart_Dispenser : public StateContext, public Transition
 {
-	friend class HasCredit; //new <-- CHECK IF THIS IS FINE WITH EMLYN
-	friend class DispensesPoptart; //new <-- CHECK IF THIS IS FINE WITH EMLYN
+	friend class HasCredit;
+	friend class DispensesPoptart;
 
 private: //added all private members
 	bool itemReadyToDispense = false;
@@ -404,6 +411,7 @@ public:
 
 // ---------- POPTART BUILDER ----------
 
+// Clears out any already built poptart 
 void PoptartBuilder::clear(void)
 {
 	delete this->BuiltProduct;
@@ -673,7 +681,6 @@ bool HasCredit::insertMoney(int money)
 	return true;
 }
 
-//NEEDS CHECKING
 bool HasCredit::makeSelection(int option)
 {
 	//Perform action:
@@ -683,20 +690,6 @@ bool HasCredit::makeSelection(int option)
 	//Use builder class to create the requested poptart
 	PBuilder->buildBase(option);
 	PBuilder->buildFillings(option);
-
-	//Calculate the cost of the item
-	Product* TempProduct = PBuilder->getProduct();
-	this->CurrentContext->setStateParam(Cost_Of_Poptart, TempProduct->cost());
-	//delete TempProduct; no need - would delete the built base inside the builder
-
-	//OLD - THIS IS WRONG, CHECK SHOULD OCCUR IN THE DISPENSE STATAE
-	//Check that the user can afford the product; if not, do not transition to the dispense state
-	//if (CurrentContext->getStateParam(Cost_Of_Poptart) > CurrentContext->getStateParam(Credit))
-	//{
-	//	cout << "Error! not enough credit for that item" << endl;
-	//	PBuilder->clear();	//destroy the item, as a new one will be create when makeSelection() is next called
-	//	return false;
-	//}
 
 	//Transition to new state:
 	this->CurrentContext->setState(Dispenses_Poptart);
@@ -777,17 +770,6 @@ bool DispensesPoptart::dispense(void)
 
 // ---------- PRODUCT ----------
 
-Product* Product::ReturnHighestCostItem(void)
-{
-	return nullptr;
-}
-
-void Filling::consume(void)
-{
-	delete this->ProductBase;
-	delete this;
-}
-
 void Filling::fillProduct(Product* NewBase)
 {
 	if (this->ProductBase != nullptr) delete this->ProductBase;
@@ -818,42 +800,4 @@ string Filling::description(void)
 	}
 
 	return desc;
-}
-
-//TODO
-Product* Filling::ReturnHighestCostItem(void)
-{
-	return nullptr;
-}
-
-
-// REMOVE LATER
-
-int main(void)
-{
-	int starting_poptarts = 2;
-	Poptart_Dispenser Dispenser(starting_poptarts);
-
-	int choice1 = 1 + 32 + 256 + 32768; //plain base with choc, raspberry and caramel
-	int choice2 = 8 + 64 + 2048; //coconut base with banana and maple
-	//choice1 cost = 100 + 20 + 50 + 20 = 190 (highest cost = plain base)
-	//choice2 cost = 200 + 50 + 100 - 350 (highest cost = coconut base)
-
-	Dispenser.insertMoney(500);
-	Dispenser.makeSelection(choice1);
-	Dispenser.dispense();
-	Product* PlainPoptart = Dispenser.getProduct();
-	cout << "Got a poptart! " << PlainPoptart->description() << endl << endl;
-
-	Dispenser.makeSelection(choice2);
-	Dispenser.dispense();
-	Dispenser.insertMoney(350);
-	Dispenser.makeSelection(choice2);
-	Dispenser.dispense();
-	Product* CoconutPoptart = Dispenser.getProduct();
-	cout << "Got another!  " << CoconutPoptart->description() << endl;
-
-	delete PlainPoptart;
-	delete CoconutPoptart;
-	return 0;
 }
